@@ -1,0 +1,253 @@
+<!doctype html>
+
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Hevin Proxy Hub</title>
+  <style>
+    :root{--bg:#0b0b10;--card:#0f0f16;--accent:#7c3aed;--muted:#9aa3b2;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; background:linear-gradient(180deg,#05050a 0%, #0b0b10 60%);color:#e6eef8;min-height:100vh}
+    .wrap{max-width:1100px;margin:32px auto;padding:20px}
+    header{display:flex;gap:16px;align-items:center}
+    .logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#2dd4bf);display:flex;align-items:center;justify-content:center;font-weight:800;color:#08080b;font-size:20px;box-shadow:0 6px 18px rgba(124,58,237,0.18)}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}.grid{display:grid;grid-template-columns:1fr 420px;gap:18px;margin-top:18px}
+.card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.02)}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button{background:linear-gradient(180deg,var(--accent),#5b21b6);border:0;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+input[type="text"], textarea, select{background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:8px;border-radius:8px;width:100%}
+textarea{min-height:160px;resize:vertical}
+.small{font-size:13px;color:var(--muted)}
+
+.list{max-height:560px;overflow:auto;padding:8px;border-radius:8px;border:1px dashed rgba(255,255,255,0.03);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+.item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.01)}
+.item .addr{font-family:monospace;font-weight:600}
+.meta{color:var(--muted);font-size:12px}
+
+.stats{display:flex;gap:12px;align-items:center;color:var(--muted);font-size:13px}
+.badge{background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px;font-weight:700}
+
+footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}
+
+@media(max-width:900px){.grid{grid-template-columns:1fr;}.logo{width:52px;height:52px}}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">H</div>
+      <div>
+        <h1>Hevin Proxy Hub</h1>
+        <p class="lead">Giao diện nhanh để nạp / lọc / xuất danh sách SOCKS5 (IP:PORT). Tương thích chạy local — không gửi gì ra ngoài.</p>
+      </div>
+    </header><div class="grid">
+  <!-- left: main tools -->
+  <div>
+    <div class="card">
+      <div class="controls">
+        <label class="small">Tải file proxy (.txt)</label>
+        <input id="fileInput" type="file" accept="text/*">
+        <button id="clearBtn" class="ghost">Xóa danh sách</button>
+      </div>
+
+      <div style="margin-top:8px;">
+        <label class="small">Dán proxy (IP:PORT mỗi dòng)</label>
+        <textarea id="pasteArea" placeholder="Ví dụ:\n1.2.3.4:1080\n5.6.7.8:1080"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="appendBtn">Ghi vào danh sách</button>
+          <button id="dedupeBtn" class="ghost">Dedupe</button>
+          <button id="downloadBtn" class="ghost">Tải xuống proxy.txt</button>
+        </div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="stats">
+          <div class="badge" id="countBadge">0</div>
+          <div class="small">Total</div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="filterInput" type="text" placeholder="Lọc (regex) hoặc 1080 hoặc :1080" style="width:200px">
+          <button id="applyFilter" class="ghost">Áp dụng</button>
+          <button id="clearFilter" class="ghost">Bỏ lọc</button>
+        </div>
+      </div>
+
+      <div class="list" id="listArea" aria-live="polite">
+        <!-- items inserted here -->
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>Hướng dẫn nhanh</strong>
+          <div class="small">Load file -> Dedupe -> Kiểm tra (nếu có tool) -> Export</div>
+        </div>
+        <div class="small">Local only • Không gửi dữ liệu</div>
+      </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+      <div class="small">
+        • Hỗ trợ định dạng mỗi dòng 1 proxy dạng IP:PORT. <br>
+        • Dùng "Lọc" để nhanh tìm port hoặc CIDR-like (ví dụ: 192.168).<br>
+        • File xuất sẽ là plain text (proxy.txt).
+      </div>
+    </div>
+  </div>
+
+  <!-- right: preview / actions -->
+  <div>
+    <div class="card">
+      <h3 style="margin-top:0">Xem trước & thao tác</h3>
+      <div style="margin-top:8px" class="small">Tìm nhanh, xóa dòng, sao chép nhanh.</div>
+
+      <div style="margin-top:12px">
+        <input id="quickSearch" type="text" placeholder="Tìm IP hoặc port...">
+      </div>
+
+      <div style="margin-top:12px">
+        <div style="display:flex;gap:8px">
+          <button id="copyVisible">Sao chép danh sách hiển thị</button>
+          <button id="removeSelected" class="ghost">Xóa các dòng chứa</button>
+        </div>
+        <div style="margin-top:8px" class="small">Nhập chuỗi vào ô bên dưới rồi nhấn "Xóa các dòng chứa"</div>
+        <input id="removeInput" type="text" placeholder="ví dụ: 1080">
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h4 style="margin:0">Log</h4>
+      <div id="logBox" style="margin-top:8px;min-height:120px;padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:13px;overflow:auto;color:var(--muted)"></div>
+    </div>
+  </div>
+</div>
+
+<footer>Hevin Proxy Hub — built local. © Hevin</footer>
+
+  </div>  <script>
+    // Simple client-side app
+    const fileInput = document.getElementById('fileInput');
+    const pasteArea = document.getElementById('pasteArea');
+    const appendBtn = document.getElementById('appendBtn');
+    const listArea = document.getElementById('listArea');
+    const countBadge = document.getElementById('countBadge');
+    const dedupeBtn = document.getElementById('dedupeBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const filterInput = document.getElementById('filterInput');
+    const applyFilter = document.getElementById('applyFilter');
+    const clearFilter = document.getElementById('clearFilter');
+    const quickSearch = document.getElementById('quickSearch');
+    const copyVisible = document.getElementById('copyVisible');
+    const removeInput = document.getElementById('removeInput');
+    const removeSelected = document.getElementById('removeSelected');
+    const logBox = document.getElementById('logBox');
+
+    let proxies = []; // master list (strings)
+    let filtered = null; // null = no filter
+
+    function log(msg){ const d = document.createElement('div'); d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`; logBox.prepend(d); }
+
+    function normalizeLine(line){ return line.trim(); }
+    function isValidEntry(s){ return /^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$/.test(s); }
+
+    function renderList(){
+      const view = filtered === null ? proxies : proxies.filter(p=>p.match(filtered));
+      listArea.innerHTML='';
+      view.forEach((p, idx)=>{
+        const item = document.createElement('div'); item.className='item';
+        const left = document.createElement('div'); left.innerHTML = `<div class="addr">${p}</div>`;
+        const right = document.createElement('div');
+        right.innerHTML = `<div class="meta"><button data-idx="${idx}" class="delBtn ghost">Xóa</button></div>`;
+        item.appendChild(left); item.appendChild(right);
+        listArea.appendChild(item);
+      });
+      countBadge.textContent = proxies.length;
+      // attach delete handlers
+      document.querySelectorAll('.delBtn').forEach(btn=>{
+        btn.onclick = (e)=>{
+          const i = parseInt(e.target.dataset.idx,10);
+          // map to actual index in proxies when filtered
+          if(filtered){
+            // find actual index
+            const matches = proxies.map((p,ii)=>({p,ii})).filter(x=>x.p.match(filtered));
+            const real = matches[i].ii;
+            proxies.splice(real,1);
+          }else proxies.splice(i,1);
+          renderList();
+          log('Xóa 1 dòng');
+        }
+      });
+    }
+
+    function addProxiesFromText(txt){
+      const lines = txt.split(/\r?\n/).map(normalizeLine).filter(Boolean);
+      let added=0;
+      lines.forEach(l=>{
+        if(isValidEntry(l) && !proxies.includes(l)){
+          proxies.push(l); added++;
+        }
+      });
+      if(added) log(`Thêm ${added} proxy mới`);
+      renderList();
+    }
+
+    appendBtn.onclick = ()=>{ addProxiesFromText(pasteArea.value); pasteArea.value=''; };
+
+    fileInput.onchange = (e)=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{ addProxiesFromText(reader.result || ''); };
+      reader.readAsText(f);
+    };
+
+    dedupeBtn.onclick = ()=>{
+      const before = proxies.length;
+      proxies = Array.from(new Set(proxies));
+      const after = proxies.length;
+      renderList();
+      log(`Dedupe: ${before-after} duplicate(s) removed`);
+    };
+
+    downloadBtn.onclick = ()=>{
+      const blob = new Blob([proxies.join('\n')], {type:'text/plain;charset=utf-8'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'proxy.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      log('Tải xuống proxy.txt');
+    };
+
+    clearBtn.onclick = ()=>{
+      if(!confirm('Xóa toàn bộ danh sách?')) return; proxies = []; renderList(); log('Danh sách đã xóa');
+    };
+
+    applyFilter.onclick = ()=>{
+      const v = filterInput.value.trim();
+      if(!v) return; try{ filtered = new RegExp(v); renderList(); log('Áp filter: '+v); }catch(e){ alert('Regex không hợp lệ'); }
+    };
+    clearFilter.onclick = ()=>{ filtered = null; filterInput.value=''; renderList(); log('Bỏ filter'); };
+
+    quickSearch.oninput = ()=>{
+      const q = quickSearch.value.trim(); if(!q){ filtered = null; renderList(); return;} try{ filtered = new RegExp(q); renderList(); }catch(e){} };
+
+    copyVisible.onclick = async ()=>{
+      const view = filtered === null ? proxies : proxies.filter(p=>p.match(filtered));
+      try{ await navigator.clipboard.writeText(view.join('\n')); log('Sao chép danh sách hiển thị'); }catch(e){ alert('Clipboard không cho phép (mở trang local bằng file:// có thể bị hạn chế)'); }
+    };
+
+    removeSelected.onclick = ()=>{
+      const q = removeInput.value.trim(); if(!q) return; const before = proxies.length; proxies = proxies.filter(p=>!p.includes(q)); renderList(); log(`Xóa các dòng chứa "${q}" (${before - proxies.length})`);
+    };
+
+    // initial render
+    renderList(); log('UI sẵn sàng');
+  </script></body>
+</html>
